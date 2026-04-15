@@ -17,5 +17,10 @@ def generate_launch_description():
             package="dig_mode",
             executable="dig_mode",
             name="dig_mode"
+        ),
+        Node(
+            package="image_tools",
+            executable="cam2image",
+            name="cam2image"
         )
     ])

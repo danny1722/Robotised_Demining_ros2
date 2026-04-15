@@ -12,5 +12,10 @@ def generate_launch_description():
             package="controller_receiver",
             executable="controller_receiver",
             name="controller_receiver"
+        ),
+        Node(
+            package="image_tools",
+            executable="showimage",
+            name="showimage"
         )
     ])
