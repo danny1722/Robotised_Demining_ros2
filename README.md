@@ -90,7 +90,7 @@ To connect visual studio code to the raspberry pi first install the ssh extensio
 Then open vs code and press ```CTRL + SHIFT + P``` then enter ```Remote-SSH: Connect to Host...```  
 Select: ```Add new SSH Host...```  
 Enter: ```ssh robotised-demining@192.168.10.2```  
-Save configuration
+Save configuration  
 Enter password of raspberry pi 
 
 vs code will save the configuration so next time will only be neccesary to:  
