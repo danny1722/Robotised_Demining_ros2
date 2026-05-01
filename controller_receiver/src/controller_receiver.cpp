@@ -8,7 +8,7 @@
 
 ControllerReceiver::ControllerReceiver() : Node("controller_receiver")
 {
-    controller_type = ControllerType::NVIDIA;
+    controller_type = ControllerType::XBOX;
 
     subscription_ = this->create_subscription<sensor_msgs::msg::Joy>(
         "/joy",

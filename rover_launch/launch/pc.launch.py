@@ -6,7 +6,10 @@ def generate_launch_description():
         Node(
             package="joy",
             executable="joy_node",
-            name="joy"
+            name="joy",
+            parameters=[{
+                "deadzone": 0.1   # Xbox controller has a deadzone of 0.1, so we set it here to prevent drift
+            }]
         ),
         Node(
             package="controller_receiver",
