@@ -51,7 +51,7 @@ SerialNode::SerialNode() : Node("serial_node")
         "cmd", 10,
         std::bind(&SerialNode::cmdCallback, this, std::placeholders::_1));
 
-    ping_timer = this->create_wall_timer(std::chrono::milliseconds(200), std::bind(&SerialNode::sendPing, this));
+    ping_timer = this->create_wall_timer(std::chrono::milliseconds(250), std::bind(&SerialNode::sendPing, this));
     watchdog_timer = this->create_wall_timer(std::chrono::milliseconds(100), std::bind(&SerialNode::checkConnection, this));
 
     read_thread = std::thread(&SerialNode::readSerial, this);
