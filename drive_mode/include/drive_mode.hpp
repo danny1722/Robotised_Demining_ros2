@@ -38,6 +38,14 @@ private:
 
     int current_left_motor_speed = 0;
     int current_right_motor_speed = 0;
+
+    // Stabilizer (anchor/stake) limit switch calibration - Left and Right independent
+    bool stabilizer_left_calibrated = false; // Track if left stabilizer calibration is complete
+    bool stabilizer_right_calibrated = false; // Track if right stabilizer calibration is complete
+    bool stabilizer_left_limit_hit = false; // Track if left limit switch has been hit during raise
+    bool stabilizer_right_limit_hit = false; // Track if right limit switch has been hit during raise
+    bool stabilizer_left_soft_limit_set = false; // Track if soft limit has been sent to Arduino
+    bool stabilizer_right_soft_limit_set = false; // Track if soft limit has been sent to Arduino
 };
 
 #endif // DRIVE_MODE_HPP
