@@ -110,6 +110,21 @@ std::string DriveMode::is_ready_to_switch()
         return "Rover is still moving";
     }
 
+    // Check if both stabilizers (left and right) are calibrated before switching modes
+    if (!stabilizer_left_calibrated) {
+        if (debug_mode) {
+            RCLCPP_WARN(this->get_logger(), "Left stabilizer is not calibrated, cannot switch modes");
+        }
+        return "Left stabilizer is not calibrated";
+    }
+
+    if (!stabilizer_right_calibrated) {
+        if (debug_mode) {
+            RCLCPP_WARN(this->get_logger(), "Right stabilizer is not calibrated, cannot switch modes");
+        }
+        return "Right stabilizer is not calibrated";
+    }
+
     // Add additional conditions here:
     // - Check arm position is safe
     // - Check sensors are ready
@@ -147,19 +162,52 @@ void DriveMode::drive_mode_logic(const sensor_msgs::msg::Joy::SharedPtr msg)
         // Send the command over serial
         drive_command_publisher->publish(drive_command);
         
-        // Create a command whether to raise or lower the stabalizer based on button input (e.g., "STABALIZER,RAISE" or "STABALIZER,LOWER")
-        std_msgs::msg::String stabalizer_command;
-        stabalizer_command.data = "STABALIZER,MAINTAIN\n"; // Default to maintain current stabalizer position
+        // Create commands for left and right stabilizers independently
+        // Button mapping:
+        // buttons[0] = A = Right lower
+        // buttons[1] = B = Right raise
+        // buttons[2] = X = Left lower
+        // buttons[3] = Y = Left raise
         
+        // Right stabilizer control (A = lower, B = raise)
         if (msg->buttons[0] == 1) {
-            stabalizer_command.data = "STABALIZER,RAISE\n"; 
+            // Right lower (A button)
+            std_msgs::msg::String right_command;
+            right_command.data = "STABILIZER_RIGHT,LOWER\n";
+            drive_command_publisher->publish(right_command);
         }
         else if (msg->buttons[1] == 1) {
-            stabalizer_command.data = "STABALIZER,LOWER\n";
+            // Right raise (B button)
+            std_msgs::msg::String right_command;
+            right_command.data = "STABILIZER_RIGHT,RAISE\n";
+            drive_command_publisher->publish(right_command);
+        }
+        else {
+            // Right maintain
+            std_msgs::msg::String right_command;
+            right_command.data = "STABILIZER_RIGHT,MAINTAIN\n";
+            drive_command_publisher->publish(right_command);
         }
         
-        // Send the stabalizer command over the drive command publisher
-        drive_command_publisher->publish(stabalizer_command);
+        // Left stabilizer control (X = lower, Y = raise)
+        if (msg->buttons[2] == 1) {
+            // Left lower (X button)
+            std_msgs::msg::String left_command;
+            left_command.data = "STABILIZER_LEFT,LOWER\n";
+            drive_command_publisher->publish(left_command);
+        }
+        else if (msg->buttons[3] == 1) {
+            // Left raise (Y button)
+            std_msgs::msg::String left_command;
+            left_command.data = "STABILIZER_LEFT,RAISE\n";
+            drive_command_publisher->publish(left_command);
+        }
+        else {
+            // Left maintain
+            std_msgs::msg::String left_command;
+            left_command.data = "STABILIZER_LEFT,MAINTAIN\n";
+            drive_command_publisher->publish(left_command);
+        }
     }
 }
 
@@ -172,6 +220,78 @@ void DriveMode::sensor_msg_callback(const std_msgs::msg::String::SharedPtr msg)
     std::string type;
 
     std::getline(ss, type, ',');  // ONLY parse type here
+
+    // Detect when left stabilizer limit switch is hit during raise
+    if (type == "STABILIZER_LEFT_LIMIT_HIT") {
+        if (!stabilizer_left_limit_hit) {
+            stabilizer_left_limit_hit = true;
+
+            if (debug_mode) {
+                RCLCPP_INFO(this->get_logger(), "Left stabilizer limit switch detected - fully raised. Lowering slightly to release...");
+            }
+
+            // Send command to lower the left stabilizer slightly to release the limit switch
+            std_msgs::msg::String lower_command;
+            lower_command.data = "STABILIZER_LEFT,LOWER_CALIBRATE\n";
+            drive_command_publisher->publish(lower_command);
+        }
+        return;
+    }
+
+    // Detect when right stabilizer limit switch is hit during raise
+    if (type == "STABILIZER_RIGHT_LIMIT_HIT") {
+        if (!stabilizer_right_limit_hit) {
+            stabilizer_right_limit_hit = true;
+
+            if (debug_mode) {
+                RCLCPP_INFO(this->get_logger(), "Right stabilizer limit switch detected - fully raised. Lowering slightly to release...");
+            }
+
+            // Send command to lower the right stabilizer slightly to release the limit switch
+            std_msgs::msg::String lower_command;
+            lower_command.data = "STABILIZER_RIGHT,LOWER_CALIBRATE\n";
+            drive_command_publisher->publish(lower_command);
+        }
+        return;
+    }
+
+    // Detect when left stabilizer calibration is complete (after lowering from limit)
+    if (type == "STABILIZER_LEFT_CALIBRATED") {
+        stabilizer_left_calibrated = true;
+        stabilizer_left_limit_hit = false;
+
+        if (debug_mode) {
+            RCLCPP_INFO(this->get_logger(), "Left stabilizer calibration complete - setting soft limit");
+        }
+
+        // Send command to set the calibrated position as soft limit (won't try to raise beyond this)
+        if (!stabilizer_left_soft_limit_set) {
+            std_msgs::msg::String soft_limit_command;
+            soft_limit_command.data = "STABILIZER_LEFT,SET_CALIBRATED_LIMIT\n";
+            drive_command_publisher->publish(soft_limit_command);
+            stabilizer_left_soft_limit_set = true;
+        }
+        return;
+    }
+
+    // Detect when right stabilizer calibration is complete (after lowering from limit)
+    if (type == "STABILIZER_RIGHT_CALIBRATED") {
+        stabilizer_right_calibrated = true;
+        stabilizer_right_limit_hit = false;
+
+        if (debug_mode) {
+            RCLCPP_INFO(this->get_logger(), "Right stabilizer calibration complete - setting soft limit");
+        }
+
+        // Send command to set the calibrated position as soft limit (won't try to raise beyond this)
+        if (!stabilizer_right_soft_limit_set) {
+            std_msgs::msg::String soft_limit_command;
+            soft_limit_command.data = "STABILIZER_RIGHT,SET_CALIBRATED_LIMIT\n";
+            drive_command_publisher->publish(soft_limit_command);
+            stabilizer_right_soft_limit_set = true;
+        }
+        return;
+    }
 
     if (type == "MOTOR_SPEED") {
         std::string left_speed_str, right_speed_str;
