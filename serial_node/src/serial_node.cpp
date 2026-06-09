@@ -35,7 +35,7 @@ SerialNode::SerialNode() : Node("serial_node")
     try {
         // Change when you're using a different port (type: ls /dev/ttyA* to find the port number)
         serial_port.Open(port); 
-        serial_port.SetBaudRate(LibSerial::BaudRate::BAUD_115200);
+        serial_port.SetBaudRate(LibSerial::BaudRate::BAUD_9600);
     } 
     catch (const LibSerial::OpenFailed&) {
         RCLCPP_ERROR(this->get_logger(), "Can't open serial port");
